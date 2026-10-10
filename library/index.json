@@ -1,0 +1,16 @@
+[
+  {
+    "id": "song_alphabet_song",
+    "title": "Alphabet Song",
+    "bpm": 99.4,
+    "duration": 19.2,
+    "total_notes": 23
+  },
+  {
+    "id": "song_demo_twinkle",
+    "title": "Demo Twinkle",
+    "bpm": 73.8,
+    "duration": 24.0,
+    "total_notes": 15
+  }
+]

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SingZone - Mobile Mic Controller</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="player-body">
+    <header class="app-header">
+        <div class="logo">🎤 SingZone Mobile</div>
+        <div id="status-badge" class="badge badge-waiting">Ready to Join</div>
+    </header>
+
+    <main class="player-container">
+        <!-- Join Stage Card -->
+        <div id="join-card" class="card">
+            <h2>Join the Karaoke Party</h2>
+            <p class="subtitle">Sing into your phone to score live on the big screen!</p>
+            
+            <div class="form-group">
+                <label for="room-id-input">Room Code</label>
+                <input type="text" id="room-id-input" placeholder="e.g. PARTY1" maxlength="10" value="PARTY1">
+            </div>
+
+            <div class="form-group">
+                <label for="player-name-input">Your Singer Name</label>
+                <input type="text" id="player-name-input" placeholder="e.g. Freddie" maxlength="15">
+            </div>
+
+            <button id="join-btn" class="btn btn-primary btn-large">🎤 Enable Mic & Join</button>
+            <p class="hint">⚠️ Allow microphone permissions when prompted.</p>
+        </div>
+
+        <!-- Live Game Card -->
+        <div id="game-card" class="card hidden">
+            <div class="stats-row">
+                <div class="stat-box">
+                    <span class="stat-label">SCORE</span>
+                    <span id="player-score" class="stat-value">0</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-label">STREAK</span>
+                    <span id="player-streak" class="stat-value">0x</span>
+                </div>
+            </div>
+
+            <!-- Real-time Pitch Visualizer -->
+            <div class="tuner-box">
+                <div class="tuner-label">YOUR LIVE PITCH</div>
+                <div id="current-note" class="note-name">--</div>
+                <div id="current-hz" class="note-hz">Listening...</div>
+                
+                <!-- Mic input volume meter -->
+                <div class="mic-meter-container">
+                    <div class="mic-icon">🎙️</div>
+                    <div class="mic-meter-track">
+                        <div id="mic-level-bar" class="mic-meter-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback rating banner -->
+            <div id="feedback-popup" class="feedback-tag rating-silent">READY</div>
+            
+            <div class="tips-box">
+                <p>💡 Tip: Sing close to the microphone. Backing track plays on the host speakers!</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/player.js"></script>
+</body>
+</html>

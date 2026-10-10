@@ -1,0 +1,421 @@
+/* Modern Cyber Karaoke Theme */
+:root {
+    --bg-dark: #0f0c1b;
+    --card-bg: #1a162b;
+    --card-border: #2e264f;
+    --accent-purple: #7928ca;
+    --accent-pink: #ff0080;
+    --accent-cyan: #00dfd8;
+    --accent-green: #00f279;
+    --accent-yellow: #f5a623;
+    --accent-red: #ff3344;
+    --text-main: #f5f5f7;
+    --text-muted: #9e9cb0;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    min-height: 100vh;
+}
+
+.player-body {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.host-body {
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.logo {
+    font-size: 1.25rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent-pink), var(--accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    margin-bottom: 20px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+}
+
+input, select {
+    width: 100%;
+    padding: 14px 16px;
+    background: #110e20;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    color: white;
+    font-size: 1.1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input:focus, select:focus {
+    border-color: var(--accent-cyan);
+}
+
+.btn {
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+    color: white;
+}
+
+.btn-primary:hover {
+    opacity: 0.95;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(255, 0, 128, 0.4);
+}
+
+.btn-large {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.badge-waiting { background: #332d56; color: #b6b0d9; }
+.badge-success { background: #083e20; color: #00f279; }
+.badge-singing { background: #500e30; color: #ff3e96; animation: pulse 1.5s infinite; }
+.badge-danger { background: #471118; color: #ff4757; }
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+
+.hint {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 12px;
+    text-align: center;
+}
+
+/* Stats Row */
+.stats-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.stat-box {
+    flex: 1;
+    background: #120e24;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    border: 1px solid #231c42;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--accent-cyan);
+}
+
+/* Tuner Box */
+.tuner-box {
+    background: #120f26;
+    border-radius: 16px;
+    padding: 24px 16px;
+    text-align: center;
+    border: 2px dashed #2d2650;
+    margin-bottom: 20px;
+}
+
+.tuner-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+}
+
+.note-name {
+    font-size: 4.5rem;
+    font-weight: 900;
+    color: #433d6b;
+    margin: 8px 0;
+    transition: color 0.15s;
+}
+
+.note-name.active-note {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 24px rgba(0, 223, 216, 0.6);
+}
+
+.note-hz {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+/* Mic level meter */
+.mic-meter-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+}
+
+.mic-meter-track {
+    flex: 1;
+    height: 10px;
+    background: #241d3d;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.mic-meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-pink));
+    transition: width 0.05s ease-out;
+}
+
+.feedback-tag {
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+}
+
+.rating-perfect { background: #00dfd8; color: #071719; box-shadow: 0 0 20px rgba(0, 223, 216, 0.5); }
+.rating-great { background: #00f279; color: #042111; }
+.rating-good { background: #f5a623; color: #221401; }
+.rating-miss { background: #3b2230; color: #a17789; }
+.rating-silent { background: #1c1833; color: #625c86; }
+
+.tips-box {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+}
+
+/* Host Screen Styles */
+.host-layout {
+    display: flex;
+    flex: 1;
+    gap: 24px;
+    height: calc(100vh - 100px);
+}
+
+.host-main-area {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.host-sidebar {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.pitch-ribbon-canvas {
+    width: 100%;
+    height: 220px;
+    background: #090714;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    display: block;
+}
+
+.lyrics-container {
+    flex: 1;
+    background: #110e20;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.current-phrase {
+    font-size: 2.8rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    line-height: 1.2;
+}
+
+.current-phrase .word-active {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 20px rgba(0, 223, 216, 0.8);
+    transform: scale(1.1);
+    display: inline-block;
+    transition: transform 0.1s;
+}
+
+.next-phrase {
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.host-controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.leaderboard-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.leaderboard-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+
+.leaderboard-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #130f26;
+    border: 1px solid #231b45;
+    padding: 12px 16px;
+    border-radius: 12px;
+    transition: transform 0.2s;
+}
+
+.player-rank {
+    font-weight: 800;
+    color: var(--accent-pink);
+    margin-right: 12px;
+    font-size: 1.1rem;
+}
+
+.player-details {
+    flex: 1;
+}
+
+.player-name-text {
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: block;
+}
+
+.player-subtext {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.player-score-text {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--accent-cyan);
+}
+
+/* QR Code Section on Host */
+.qr-modal-section {
+    text-align: center;
+    background: #130f28;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.qr-img {
+    width: 160px;
+    height: 160px;
+    background: white;
+    padding: 8px;
+    border-radius: 12px;
+    margin: 10px auto;
+    display: block;
+}
