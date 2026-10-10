@@ -4,3 +4,7 @@ sounddevice
 soundfile
 matplotlib
 scipy
+fastapi
+uvicorn
+websockets
+python-multipart

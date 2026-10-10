@@ -1,82 +1,319 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phone Mic</title>
+<title>VocalBattle - 1v1 Singing Showdown</title>
 <style>
-  body { font-family: sans-serif; text-align: center; margin: 2em; }
-  button, input { font-size: 1.5em; padding: .5em 1em; margin: .3em; }
-  #code { font-size: 4em; letter-spacing: .15em; font-weight: bold; }
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #141b2d;
+    --card-border: #232d42;
+    --accent-cyan: #00f2fe;
+    --accent-purple: #9d4edd;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+  body {
+    font-family: -apple-system, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    margin: 0; padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .screen { display: none; width: 100%; max-width: 900px; }
+  .active { display: block; }
+  
+  .btn {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    border: none; color: white; padding: 12px 24px; border-radius: 8px;
+    font-size: 1.1rem; cursor: pointer; font-weight: bold;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .videos { display: flex; gap: 20px; margin-top: 20px; justify-content: center; }
+  .video-container { flex: 1; background: #000; border-radius: 12px; overflow: hidden; position: relative; max-width: 400px; aspect-ratio: 4/3;}
+  video { width: 100%; height: 100%; object-fit: cover; }
+  .video-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px; }
+  
+  .status-bar { text-align: center; margin: 20px 0; font-size: 1.5rem; font-weight: bold; }
+  .song-list { display: grid; gap: 10px; }
+  .song-card { background: var(--card-bg); padding: 15px; border: 1px solid var(--card-border); border-radius: 8px; cursor: pointer; }
+  .song-card:hover { border-color: var(--accent-cyan); }
+  
+  .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+  .result-card { background: var(--card-bg); padding: 20px; border-radius: 8px; border: 1px solid var(--card-border); text-align: center; }
+  .score { font-size: 3rem; font-weight: bold; color: var(--accent-cyan); margin: 10px 0; }
+  
+  #logs { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); margin-top: 40px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
-<h1>Phone Mic</h1>
 
-<div id="choose">
-  <button onclick="startLaptop()">I'm the laptop (receive)</button>
-  <button onclick="showPhone()">I'm the phone (send mic)</button>
+<h1>🎤 VocalBattle 1v1</h1>
+
+<div id="home-screen" class="screen active">
+  <p>Ready to battle? We'll match you with another singer.</p>
+  <button id="find-match-btn" class="btn">Find Match</button>
 </div>
 
-<div id="laptop" hidden>
-  <p>Enter this code on your phone:</p>
-  <div id="code">....</div>
-  <p id="lstatus">Waiting for phone...</p>
-  <audio id="audio" autoplay controls></audio>
+<div id="matchmaking-screen" class="screen">
+  <div class="status-bar">Searching for opponent... 🔍</div>
 </div>
 
-<div id="phone" hidden>
-  <input id="codeInput" inputmode="numeric" maxlength="4" placeholder="1234">
-  <button onclick="startPhone()">Connect &amp; share mic</button>
-  <p id="pstatus"></p>
+<div id="battle-screen" class="screen">
+  <div class="status-bar" id="battle-status">Waiting for opponent to select a song...</div>
+  
+  <div id="song-selection" style="display:none; margin-bottom: 20px;">
+    <h3>Select a Song to Battle:</h3>
+    <div class="song-list" id="songs"></div>
+  </div>
+
+  <div class="videos">
+    <div class="video-container">
+      <video id="local-video" autoplay muted playsinline></video>
+      <div class="video-label">You</div>
+    </div>
+    <div class="video-container">
+      <video id="remote-video" autoplay playsinline></video>
+      <div class="video-label">Opponent</div>
+    </div>
+  </div>
+  
+  <div id="controls" style="text-align:center; margin-top: 20px;">
+    <button id="start-turn-btn" class="btn" style="display:none;">Start Singing</button>
+    <audio id="reference-audio" controls style="display:none; margin-top: 10px; width: 100%;"></audio>
+  </div>
 </div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<div id="results-screen" class="screen">
+  <div class="status-bar">Battle Results!</div>
+  <div class="results-grid">
+    <div class="result-card">
+      <h3>You</h3>
+      <div class="score" id="p1-score">--</div>
+      <div id="p1-grade">Grade: -</div>
+    </div>
+    <div class="result-card">
+      <h3>Opponent</h3>
+      <div class="score" id="p2-score">--</div>
+      <div id="p2-grade">Grade: -</div>
+    </div>
+  </div>
+  <div style="text-align:center; margin-top: 30px;">
+    <button class="btn" onclick="location.reload()">Play Again</button>
+  </div>
+</div>
+
+<div id="logs"></div>
+
 <script>
-const $ = id => document.getElementById(id);
-const PREFIX = "phonemic-";
-
-function startLaptop() {
-  $("choose").hidden = true;
-  $("laptop").hidden = false;
-  const code = String(Math.floor(1000 + Math.random() * 9000));
-  $("code").textContent = code;
-  const peer = new Peer(PREFIX + code);
-  peer.on("call", call => {
-    call.answer();                       // we only receive, no mic needed here
-    call.on("stream", stream => {
-      $("audio").srcObject = stream;     // plays through the laptop output
-      $("audio").play();
-      $("lstatus").textContent = "Connected! Receiving phone mic.";
-      // `stream` is a normal MediaStream: use it for note detection, etc.
-    });
-    call.on("close", () => $("lstatus").textContent = "Phone disconnected.");
-  });
-  peer.on("error", e => $("lstatus").textContent = "Error: " + e.type);
+function log(msg) {
+  document.getElementById('logs').textContent += msg + '\n';
+  console.log(msg);
 }
 
-function showPhone() {
-  $("choose").hidden = true;
-  $("phone").hidden = false;
+const playerId = Math.random().toString(36).substring(7);
+let ws;
+let peerConnection;
+let localStream;
+let isMyTurn = false;
+let currentRole = null; // 'p1' or 'p2'
+let selectedSongId = null;
+let mediaRecorder;
+let recordedChunks = [];
+
+let opponentId = null;
+
+const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+const screens = ['home', 'matchmaking', 'battle', 'results'].reduce((acc, id) => {
+  acc[id] = document.getElementById(`${id}-screen`);
+  return acc;
+}, {});
+
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
 }
 
-async function startPhone() {
-  const code = $("codeInput").value.trim();
+async function initMedia() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-    });
-    const peer = new Peer();
-    peer.on("open", () => {
-      const call = peer.call(PREFIX + code, stream);
-      $("pstatus").textContent = "Streaming your mic to the laptop...";
-      call.on("close", () => $("pstatus").textContent = "Disconnected.");
-    });
-    peer.on("error", e => $("pstatus").textContent = "Error: " + e.type);
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('local-video').srcObject = localStream;
   } catch (e) {
-    $("pstatus").textContent = "Mic error: " + e.message;
+    log("Error accessing media: " + e);
   }
 }
+
+document.getElementById('find-match-btn').onclick = async () => {
+  await initMedia();
+  showScreen('matchmaking');
+  
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${protocol}://${location.host}/ws/${playerId}`);
+  
+  ws.onmessage = async (event) => {
+    const msg = JSON.parse(event.data);
+    log(`WS RECV: ${msg.type}`);
+    
+    if (msg.type === 'matched') {
+      showScreen('battle');
+      currentRole = msg.p1_id === playerId ? 'p1' : 'p2';
+      opponentId = currentRole === 'p1' ? msg.p2_id : msg.p1_id;
+      isMyTurn = msg.turn === playerId;
+      
+      initPeerConnection();
+      
+      if (currentRole === 'p1') {
+        // P1 is the initiator of WebRTC connection
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        ws.send(JSON.stringify({ type: 'rtc_signal', target: opponentId, signal: { type: 'offer', sdp: offer } }));
+        
+        loadSongs();
+        document.getElementById('song-selection').style.display = 'block';
+        document.getElementById('battle-status').innerText = 'Select a song for the battle!';
+      } else {
+        document.getElementById('battle-status').innerText = 'Opponent is selecting a song...';
+      }
+    }
+    
+    else if (msg.type === 'rtc_signal') {
+      const signal = msg.signal;
+      if (signal.type === 'offer') {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        ws.send(JSON.stringify({ type: 'rtc_signal', target: msg.sender, signal: { type: 'answer', sdp: answer } }));
+      } else if (signal.type === 'answer') {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+      } else if (signal.candidate) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+      }
+    }
+    
+    else if (msg.type === 'turn_p1') {
+      document.getElementById('song-selection').style.display = 'none';
+      selectedSongId = msg.song_id;
+      isMyTurn = msg.singer === playerId;
+      
+      if (isMyTurn) {
+        document.getElementById('battle-status').innerText = "Your Turn! Click 'Start Singing'";
+        document.getElementById('start-turn-btn').style.display = 'inline-block';
+      } else {
+        document.getElementById('battle-status').innerText = "Opponent is getting ready...";
+      }
+    }
+    
+    else if (msg.type === 'turn_p2') {
+      isMyTurn = msg.singer === playerId;
+      if (isMyTurn) {
+        document.getElementById('battle-status').innerText = "Your Turn! Click 'Start Singing'";
+        document.getElementById('start-turn-btn').style.display = 'inline-block';
+      } else {
+        document.getElementById('battle-status').innerText = "Opponent is getting ready...";
+      }
+    }
+    
+    else if (msg.type === 'game_over') {
+      showScreen('results');
+      const myResults = currentRole === 'p1' ? msg.p1_results : msg.p2_results;
+      const oppResults = currentRole === 'p1' ? msg.p2_results : msg.p1_results;
+      
+      document.getElementById('p1-score').innerText = myResults.overall_score.toFixed(1);
+      document.getElementById('p1-grade').innerText = `Grade: ${myResults.letter_grade}`;
+      
+      document.getElementById('p2-score').innerText = oppResults.overall_score.toFixed(1);
+      document.getElementById('p2-grade').innerText = `Grade: ${oppResults.letter_grade}`;
+    }
+    
+    else if (msg.type === 'opponent_disconnected') {
+      alert("Opponent disconnected!");
+      location.reload();
+    }
+  };
+};
+
+function initPeerConnection() {
+  peerConnection = new RTCPeerConnection(config);
+  
+  if (localStream) {
+    localStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStream);
+    });
+  }
+  
+  peerConnection.ontrack = (event) => {
+    document.getElementById('remote-video').srcObject = event.streams[0];
+  };
+  
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate && opponentId) {
+      ws.send(JSON.stringify({ type: 'rtc_signal', target: opponentId, signal: { candidate: event.candidate } }));
+    }
+  };
+}
+
+async function loadSongs() {
+  const res = await fetch('/api/songs');
+  const songs = await res.json();
+  const container = document.getElementById('songs');
+  container.innerHTML = '';
+  
+  songs.forEach(song => {
+    const el = document.createElement('div');
+    el.className = 'song-card';
+    el.innerHTML = `<strong>${song.title}</strong><br><small>Duration: ${song.duration.toFixed(1)}s</small>`;
+    el.onclick = () => {
+      ws.send(JSON.stringify({ type: 'song_selected', song_id: song.id }));
+    };
+    container.appendChild(el);
+  });
+}
+
+document.getElementById('start-turn-btn').onclick = () => {
+  document.getElementById('start-turn-btn').style.display = 'none';
+  document.getElementById('battle-status').innerText = "You are singing! Recording...";
+  
+  const audioEl = document.getElementById('reference-audio');
+  audioEl.src = `/api/audio/${selectedSongId}`;
+  audioEl.style.display = 'block';
+  audioEl.play();
+  
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
+  mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+  
+  mediaRecorder.onstop = async () => {
+    document.getElementById('battle-status').innerText = "Uploading and evaluating your cover...";
+    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+    
+    const formData = new FormData();
+    formData.append("player_id", playerId);
+    formData.append("song_id", selectedSongId);
+    formData.append("audio", blob, "cover.webm");
+    
+    try {
+      await fetch('/api/evaluate', { method: 'POST', body: formData });
+      // Evaluation is done, notify server turn is complete
+      const turnType = currentRole === 'p1' ? 'finish_p1_turn' : 'finish_p2_turn';
+      ws.send(JSON.stringify({ type: turnType }));
+      document.getElementById('battle-status').innerText = "Waiting for opponent...";
+    } catch (e) {
+      log("Upload failed: " + e);
+    }
+  };
+  
+  mediaRecorder.start();
+  
+  // Stop when song ends
+  audioEl.onended = () => {
+    audioEl.style.display = 'none';
+    mediaRecorder.stop();
+  };
+};
+
 </script>
 </body>
 </html>
