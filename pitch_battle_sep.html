@@ -30,7 +30,8 @@ label{margin:0 8px;white-space:nowrap}
      <label><input type="checkbox" id="auto"> Auto-sing</label>
      <label><input type="checkbox" id="back" checked> Backing (headphones!)</label></p>
   <p style="color:var(--mut)">No mic? Hold A W S E D F T G Y H U J K (C4–C5).</p>
-  <button id="go">Start Player 1</button>
+  <button id="go" disabled>Loading song...</button>
+  <p id="loadmsg" style="color:var(--mut)"></p>
 </div>
 <div id="game" class="hide">
   <h2 id="who"></h2>
@@ -43,12 +44,21 @@ label{margin:0 8px;white-space:nowrap}
 
 <script>
 const $=id=>document.getElementById(id);
-// [midi,start,end,lyric] — "You Are My Sunshine"
-const N=[[60,3,3.4,"You"],[62,3.5,3.9,"are"],[64,4,4.4,"my"],[64,4.5,5.3,"sun-"],[64,5.4,6.7,"-shine,"],[62,7,7.4,"my"],[64,7.5,8.1,"on-"],[60,8.2,8.6,"-ly"],[60,8.7,9.4,"sun-"],[60,9.5,10.9,"-shine."],[60,11.4,11.8,"You"],[62,11.9,12.3,"make"],[64,12.4,12.8,"me"],[65,12.9,13.6,"hap-"],[69,13.7,15,"-py"],[69,15.4,15.9,"when"],[67,16,16.5,"skies"],[65,16.6,17.1,"are"],[64,17.2,18.7,"gray."],[60,19.2,19.6,"You'll"],[62,19.7,20.1,"ne-"],[64,20.2,20.6,"-ver"],[65,20.7,21.4,"know,"],[69,21.5,22.8,"dear,"],[69,23.2,23.7,"how"],[67,23.8,24.3,"much"],[65,24.4,24.9,"I"],[64,25,25.7,"love"],[60,25.8,27,"you."],[60,27.5,27.9,"Please"],[62,28,28.4,"don't"],[64,28.5,28.9,"take"],[65,29,29.5,"my"],[64,29.6,30.3,"sun-"],[62,30.4,31,"-shine"],[62,31.1,31.6,"a-"],[60,31.7,33.5,"-way!"]]
-.map(([m,s,e,l])=>({m,s,e,l}));
-const BASS=[[0,36],[3,36],[7,36],[11,41],[15,36],[19,41],[23,36],[27,43],[31,36]]; // [time, root midi]
-const DUR=35,COUNT=3,NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+// Song data lives in song.json (or ?song=other.json)
+let N=[],BASS=[],DUR=35,COUNT=3,LO=55,HI=74;
+const NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const target=t=>N.find(n=>t>=n.s&&t<=n.e);
+
+// Load song JSON, then enable Start
+const songFile=new URLSearchParams(location.search).get('song')||'song.json';
+fetch(songFile).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(s=>{
+  N=s.notes.map(k=>({m:k.midi,s:k.start,e:k.end,l:k.lyric}));
+  BASS=s.bass.map(b=>[b.time,b.midi]);
+  DUR=s.duration;COUNT=s.countIn;
+  const ms=N.map(k=>k.m);LO=Math.min(...ms)-5;HI=Math.max(...ms)+5;
+  $('go').textContent='Start Player 1';$('go').disabled=false;
+  $('loadmsg').textContent=s.title||'';
+}).catch(e=>{$('loadmsg').textContent='Could not load '+songFile+' ('+e.message+'). Serve over http(s); fetch does not work from file://'});
 const hz=m=>440*Math.pow(2,(m-69)/12);
 
 // YIN pitch detector
@@ -115,7 +125,7 @@ $('go').onclick=()=>startRound(0);
 $('go2').onclick=()=>startRound(1);
 
 // Canvas
-let curY=130;const cv=$('cv'),g=cv.getContext('2d'),W=640,H=260,PPS=140,NOWX=150,LO=55,HI=74;
+let curY=130;const cv=$('cv'),g=cv.getContext('2d'),W=640,H=260,PPS=140,NOWX=150;
 const Y=m=>H-(Math.max(LO-1,Math.min(HI+1,m))-LO)/(HI-LO)*H;
 
 function frame(){
