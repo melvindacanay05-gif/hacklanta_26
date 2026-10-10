@@ -1,30 +1,32 @@
-# Terminal Note Detector
+# Hacklanta 26: Song Pipelines & Note Detection
 
-Listens to your default microphone and prints detected notes with elapsed time.
+This repository contains audio processing pipelines for pitch detection, song cover accuracy rating, and real-time audio interaction:
 
-Example:
-```text
-Listening. Press Ctrl+C to stop.
-Elapsed | Note | Frequency
----------------------------
-00:00.51 |  A4 |   440.3 Hz
-00:01.52 |  C5 |   523.1 Hz
-```
+- **`song_pipeline_v1/`**: Web-based multiplayer song player and library builder.
+- **`song_pipeline_v2/`**: AI-powered lyric-aligned song cover accuracy rating engine (Whisper transcription + DTW alignment + pitch & note grading).
+- **`app.py`**: Real-time terminal microphone note detector.
 
-## Windows / VS Code
-Use Python 3.11:
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+---
+
+## Song Pipeline v2 Quick Start
+
+### 1. Setup Virtual Environment
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python app.py
 ```
-Press Ctrl+C to stop.
 
-This uses pitch estimation rather than a pretrained sound classifier because the goal is to identify notes. It prints only when the note changes. Best with one sustained note at a time; chords and background sounds can confuse it.
+### 2. Run Accuracy Evaluation
+```bash
+# Run self-test verification
+python song_pipeline_v2/compare.py
 
-To list microphone devices:
-```powershell
-python -c "import sounddevice as sd; print(sd.query_devices())"
+# Compare against a user cover audio file
+python song_pipeline_v2/compare.py --cover "path/to/user_cover.wav"
+
+# Record live from microphone (30 seconds)
+python song_pipeline_v2/compare.py --record 30
 ```
+
+For full architecture and module documentation, see [`song_pipeline_v2/README.md`](song_pipeline_v2/README.md).
