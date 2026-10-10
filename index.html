@@ -8,6 +8,7 @@
   body { font-family: sans-serif; text-align: center; margin: 2em; }
   button, input { font-size: 1.5em; padding: .5em 1em; margin: .3em; }
   #code { font-size: 4em; letter-spacing: .15em; font-weight: bold; }
+  ul { list-style: none; padding: 0; font-size: 1.2em; }
 </style>
 </head>
 <body>
@@ -28,10 +29,12 @@
   <p>Enter this code on your phone:</p>
   <div id="code">....</div>
   <p id="lstatus">Waiting for phone...</p>
+  <ul id="devices"></ul>
   <audio id="audio" autoplay controls></audio>
 </div>
 
 <div id="phone" hidden>
+  <input id="nameInput" placeholder="Device name (e.g. Guitar)" maxlength="10"><br>
   <input id="codeInput" inputmode="numeric" maxlength="4" placeholder="1234">
   <button onclick="startPhone()">Connect &amp; share mic</button>
   <p id="pstatus"></p>
@@ -41,6 +44,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const PREFIX = "phonemic-";
+const keepAlive = [];   // keeps extra audio elements alive
 
 function startLaptop() {
   $("choose").hidden = true;
@@ -50,15 +54,46 @@ function startLaptop() {
   const peer = new Peer(PREFIX + code);
   peer.on("call", call => {
     call.answer();                       // we only receive, no mic needed here
+    const name = (call.metadata && call.metadata.name) || "Phone";
+    const li = document.createElement("li");
+    li.textContent = name + ": connecting...";
+    $("devices").appendChild(li);
     call.on("stream", stream => {
-      $("audio").srcObject = stream;     // plays through the laptop output
-      $("audio").play();
+      // play through the laptop output (first phone uses the page's player,
+      // extra phones get their own player so they don't replace each other)
+      const el = $("audio").srcObject ? new Audio() : $("audio");
+      el.srcObject = stream;
+      el.play();
+      keepAlive.push(el);
       $("lstatus").textContent = "Connected! Receiving phone mic.";
-      // `stream` is a normal MediaStream: use it for note detection, etc.
+      forwardToPython(stream, name, li);   // send to app.py for pitch detection
     });
-    call.on("close", () => $("lstatus").textContent = "Phone disconnected.");
+    call.on("close", () => {
+      li.textContent = name + ": disconnected";
+      $("lstatus").textContent = "Phone disconnected.";
+    });
   });
   peer.on("error", e => $("lstatus").textContent = "Error: " + e.type);
+}
+
+// Sends the phone's audio to app.py (same pipeline as the laptop mic)
+function forwardToPython(stream, name, li) {
+  const ws = new WebSocket("ws://localhost:8765/ws?name=" + encodeURIComponent(name));
+  ws.binaryType = "arraybuffer";
+  ws.onerror = () => li.textContent = name + ": can't reach app.py. Is it running?";
+  ws.onopen = () => {
+    const ctx = new AudioContext({ sampleRate: 22050 });   // matches SAMPLE_RATE in app.py
+    ctx.resume();
+    const src = ctx.createMediaStreamSource(stream);
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    proc.onaudioprocess = e => {
+      if (ws.readyState === 1)
+        ws.send(new Float32Array(e.inputBuffer.getChannelData(0)).buffer);
+    };
+    src.connect(proc);
+    proc.connect(ctx.destination);   // outputs silence; just keeps the node running
+    li.textContent = name + ": connected, sending to app.py";
+  };
 }
 
 function showPhone() {
@@ -68,14 +103,15 @@ function showPhone() {
 
 async function startPhone() {
   const code = $("codeInput").value.trim();
+  const name = $("nameInput").value.trim() || "Phone";
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
     });
     const peer = new Peer();
     peer.on("open", () => {
-      const call = peer.call(PREFIX + code, stream);
-      $("pstatus").textContent = "Streaming your mic to the laptop...";
+      const call = peer.call(PREFIX + code, stream, { metadata: { name } });
+      $("pstatus").textContent = "Streaming your mic to the laptop as \"" + name + "\"...";
       call.on("close", () => $("pstatus").textContent = "Disconnected.");
     });
     peer.on("error", e => $("pstatus").textContent = "Error: " + e.type);
