@@ -18,6 +18,12 @@
   <button onclick="showPhone()">I'm the phone (send mic)</button>
 </div>
 
+<div id="qr"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  new QRCode(document.getElementById("qr"), location.href);
+</script>
+
 <div id="laptop" hidden>
   <p>Enter this code on your phone:</p>
   <div id="code">....</div>
