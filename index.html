@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone Mic</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin: 2em; }
+  button, input { font-size: 1.5em; padding: .5em 1em; margin: .3em; }
+  #code { font-size: 4em; letter-spacing: .15em; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>Phone Mic</h1>
+
+<div id="choose">
+  <button onclick="startLaptop()">I'm the laptop (receive)</button>
+  <button onclick="showPhone()">I'm the phone (send mic)</button>
+</div>
+
+<div id="laptop" hidden>
+  <p>Enter this code on your phone:</p>
+  <div id="code">....</div>
+  <p id="lstatus">Waiting for phone...</p>
+  <audio id="audio" autoplay controls></audio>
+</div>
+
+<div id="phone" hidden>
+  <input id="codeInput" inputmode="numeric" maxlength="4" placeholder="1234">
+  <button onclick="startPhone()">Connect &amp; share mic</button>
+  <p id="pstatus"></p>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const PREFIX = "phonemic-";
+
+function startLaptop() {
+  $("choose").hidden = true;
+  $("laptop").hidden = false;
+  const code = String(Math.floor(1000 + Math.random() * 9000));
+  $("code").textContent = code;
+  const peer = new Peer(PREFIX + code);
+  peer.on("call", call => {
+    call.answer();                       // we only receive, no mic needed here
+    call.on("stream", stream => {
+      $("audio").srcObject = stream;     // plays through the laptop output
+      $("audio").play();
+      $("lstatus").textContent = "Connected! Receiving phone mic.";
+      // `stream` is a normal MediaStream: use it for note detection, etc.
+    });
+    call.on("close", () => $("lstatus").textContent = "Phone disconnected.");
+  });
+  peer.on("error", e => $("lstatus").textContent = "Error: " + e.type);
+}
+
+function showPhone() {
+  $("choose").hidden = true;
+  $("phone").hidden = false;
+}
+
+async function startPhone() {
+  const code = $("codeInput").value.trim();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    const peer = new Peer();
+    peer.on("open", () => {
+      const call = peer.call(PREFIX + code, stream);
+      $("pstatus").textContent = "Streaming your mic to the laptop...";
+      call.on("close", () => $("pstatus").textContent = "Disconnected.");
+    });
+    peer.on("error", e => $("pstatus").textContent = "Error: " + e.type);
+  } catch (e) {
+    $("pstatus").textContent = "Mic error: " + e.message;
+  }
+}
+</script>
+</body>
+</html>
