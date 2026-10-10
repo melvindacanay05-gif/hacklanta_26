@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PitchBattle Lite</title>
+<style>
+:root{--bg:#fff;--fg:#111;--mut:#666;--box:#f2f2f2;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111;--fg:#eee;--mut:#999;--box:#222}}
+:root[data-theme="dark"]{--bg:#111;--fg:#eee;--mut:#999;--box:#222}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;max-width:680px;margin:0 auto;padding:16px;text-align:center}
+button{font-size:1rem;padding:10px 22px;border-radius:8px;border:1px solid var(--mut);background:var(--box);color:var(--fg);cursor:pointer}
+canvas{width:100%;max-width:640px;background:var(--box);border-radius:8px}
+label{margin:0 8px;white-space:nowrap}
+.hide{display:none}.big{font-size:1.4rem;font-weight:700;min-height:1.8em}
+</style></head><body>
+
+<nav>
+  <a href="../index.html">Phone Mic</a>
+  <a href="mode_one\pitch_battle.html" class="active">Pitch Battle</a>
+</nav>
+<style>
+  nav { margin-bottom: 1em; font-size: 1.2em; text-align: center; }
+  nav a { margin: 0 .6em; text-decoration: none; }
+  nav a.active { font-weight: bold; text-decoration: underline; }
+</style>
+
+<h1>PitchBattle Lite</h1>
+<div id="start">
+  <p>Sing "You Are My Sunshine". In 2-player mode, P2 chases P1's ghost line.</p>
+  <p><label><input type="checkbox" id="solo"> Solo</label>
+     <label><input type="checkbox" id="auto"> Auto-sing</label>
+     <label><input type="checkbox" id="back" checked> Backing (headphones!)</label></p>
+  <p style="color:var(--mut)">No mic? Hold A W S E D F T G Y H U J K (C4–C5).</p>
+  <button id="go">Start Player 1</button>
+</div>
+<div id="game" class="hide">
+  <h2 id="who"></h2>
+  <canvas id="cv" width="640" height="260"></canvas>
+  <div class="big" id="lyric"></div>
+  <p id="hud"></p>
+</div>
+<div id="mid" class="hide"><h2 id="midtxt"></h2><button id="go2">Player 2: Start</button></div>
+<div id="end" class="hide"><h2 id="endtxt"></h2><button onclick="location.reload()">Play again</button></div>
+
+<script>
+const $=id=>document.getElementById(id);
+// [midi,start,end,lyric] — "You Are My Sunshine"
+const N=[[60,3,3.4,"You"],[62,3.5,3.9,"are"],[64,4,4.4,"my"],[64,4.5,5.3,"sun-"],[64,5.4,6.7,"-shine,"],[62,7,7.4,"my"],[64,7.5,8.1,"on-"],[60,8.2,8.6,"-ly"],[60,8.7,9.4,"sun-"],[60,9.5,10.9,"-shine."],[60,11.4,11.8,"You"],[62,11.9,12.3,"make"],[64,12.4,12.8,"me"],[65,12.9,13.6,"hap-"],[69,13.7,15,"-py"],[69,15.4,15.9,"when"],[67,16,16.5,"skies"],[65,16.6,17.1,"are"],[64,17.2,18.7,"gray."],[60,19.2,19.6,"You'll"],[62,19.7,20.1,"ne-"],[64,20.2,20.6,"-ver"],[65,20.7,21.4,"know,"],[69,21.5,22.8,"dear,"],[69,23.2,23.7,"how"],[67,23.8,24.3,"much"],[65,24.4,24.9,"I"],[64,25,25.7,"love"],[60,25.8,27,"you."],[60,27.5,27.9,"Please"],[62,28,28.4,"don't"],[64,28.5,28.9,"take"],[65,29,29.5,"my"],[64,29.6,30.3,"sun-"],[62,30.4,31,"-shine"],[62,31.1,31.6,"a-"],[60,31.7,33.5,"-way!"]]
+.map(([m,s,e,l])=>({m,s,e,l}));
+const BASS=[[0,36],[3,36],[7,36],[11,41],[15,36],[19,41],[23,36],[27,43],[31,36]]; // [time, root midi]
+const DUR=35,COUNT=3,NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const target=t=>N.find(n=>t>=n.s&&t<=n.e);
+const hz=m=>440*Math.pow(2,(m-69)/12);
+
+// YIN pitch detector
+function yin(buf,sr){
+  let r=0;for(const x of buf)r+=x*x;
+  if(Math.sqrt(r/buf.length)<.005)return -1;
+  const n=buf.length>>1,d=new Float32Array(n),maxT=Math.min(n-1,sr/80|0),minT=sr/1000|0;
+  for(let t=1;t<=maxT;t++){let s=0;for(let i=0;i<n;i+=2){const v=buf[i]-buf[i+t];s+=v*v}d[t]=s}
+  let run=0;d[0]=1;
+  for(let t=1;t<=maxT;t++){run+=d[t];d[t]=d[t]*t/run}
+  for(let t=Math.max(2,minT);t<maxT;t++){
+    if(d[t]<.15){
+      while(t+1<maxT&&d[t+1]<d[t])t++;
+      const a=d[t-1],b=d[t],c=d[t+1],den=a-2*b+c;
+      return sr/(t+(den?(a-c)/(2*den):0));
+    }
+  }
+  return -1;
+}
+
+// Audio
+let micMsg='',ac,analyser,buf,keyMidi=null,player=0,t0=0,running=false,nodes=[];
+const keys={a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72};
+addEventListener('keydown',e=>{if(!e.repeat&&keys[e.key])keyMidi=keys[e.key]});
+addEventListener('keyup',e=>{if(keys[e.key])keyMidi=null});
+async function init(){
+  ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+  await ac.resume();
+  if(!analyser){
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false}});
+      analyser=ac.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=0;
+      const z=ac.createGain();z.gain.value=0; // silent sink keeps the graph pulling audio, no feedback
+      ac.createMediaStreamSource(s).connect(analyser);analyser.connect(z);z.connect(ac.destination);
+      buf=new Float32Array(analyser.fftSize);micMsg='';
+    }catch(e){micMsg='Mic blocked ('+e.name+'): open the file locally in Chrome/Edge, or use keys'}
+  }
+}
+function tone(type,f,start,dur,vol){
+  const o=ac.createOscillator(),g=ac.createGain();
+  o.type=type;o.frequency.value=f;
+  g.gain.setValueAtTime(.0001,start);g.gain.linearRampToValueAtTime(vol,start+.03);
+  g.gain.exponentialRampToValueAtTime(.0001,start+dur);
+  o.connect(g).connect(ac.destination);o.start(start);o.stop(start+dur+.05);nodes.push(o);
+}
+function schedule(base){
+  [0,.75,1.5,2.25].forEach((o,i)=>tone('triangle',i==3?880:587,base+o,.12,.3)); // count-in
+  if(!$('back').checked)return;
+  N.forEach(n=>tone('sine',hz(n.m),base+n.s,n.e-n.s,.15)); // guide melody
+  BASS.forEach(([t,m],i)=>tone('triangle',hz(m),base+t,(BASS[i+1]?BASS[i+1][0]:DUR)-t,.2)); // bass
+}
+
+// Game state
+const blank=()=>({score:0,combo:0,max:0,n:0,hit:0,hist:[]});
+const P=[blank(),blank()];
+async function startRound(p){
+  await init();player=p;
+  ['start','mid','end'].forEach(i=>$(i).classList.add('hide'));
+  $('game').classList.remove('hide');
+  $('who').textContent=$('solo').checked?'Solo':'Player '+(p+1);
+  t0=ac.currentTime;schedule(t0);running=true;requestAnimationFrame(frame);
+}
+$('go').onclick=()=>startRound(0);
+$('go2').onclick=()=>startRound(1);
+
+// Canvas
+let curY=130;const cv=$('cv'),g=cv.getContext('2d'),W=640,H=260,PPS=140,NOWX=150,LO=55,HI=74;
+const Y=m=>H-(Math.max(LO-1,Math.min(HI+1,m))-LO)/(HI-LO)*H;
+
+function frame(){
+  if(!running)return;
+  const t=ac.currentTime-t0,n=target(t),s=P[player];
+  let m=null;
+  if(keyMidi!=null)m=keyMidi;
+  else if($('auto').checked){if(n)m=n.m+Math.sin(t*31.4)*.15}
+  else if(analyser){
+    analyser.getFloatTimeDomainData(buf);
+    const f=yin(buf,ac.sampleRate);if(f>0)m=69+12*Math.log2(f/440);
+  }
+  // octave-folded display & scoring
+  let disp=null,dist=99;
+  if(m!=null){
+    disp=m+12*Math.round(((n?n.m:65)-m)/12);
+    if(n){dist=Math.abs(((m-n.m)%12+12)%12);dist=Math.min(dist,12-dist)}
+  }
+  if(n){
+    s.n++;
+    if(dist<=.75){
+      s.hit++;s.combo++;s.max=Math.max(s.max,s.combo);
+      const mult=s.combo>=30?3:s.combo>=15?2:s.combo>=5?1.5:1;
+      s.score+=Math.round((dist<=.35?100:50)*mult);
+    }else s.combo=0;
+  }
+  if(disp!=null)s.hist.push([t,disp]);
+
+  g.clearRect(0,0,W,H);
+  const X=tt=>NOWX+(tt-t)*PPS;
+  g.fillStyle='#e91e63';
+  N.forEach(k=>g.fillRect(X(k.s),Y(k.m)-8,(k.e-k.s)*PPS,16));
+  if(player===1&&!$('solo').checked){g.fillStyle='rgba(0,200,255,.6)';P[0].hist.forEach(([tt,mm])=>g.fillRect(X(tt),Y(mm)-2,3,4))}
+  if(disp!=null){ // cursor follows your pitch at the hit line
+    curY+=(Y(disp)-curY)*.4;
+    g.fillStyle=dist<=.75?'#4caf50':'#fff';g.strokeStyle='#000';g.lineWidth=2;
+    g.beginPath();g.arc(NOWX,curY,11,0,7);g.fill();g.stroke();
+  }
+  g.fillStyle='#888';g.fillRect(NOWX,0,2,H);
+
+  $('lyric').textContent=t<COUNT?'Get ready... '+Math.ceil(COUNT-t):(n?n.l:'');
+  $('hud').textContent='Score '+s.score+' | Combo '+s.combo+' | You: '+(m!=null?NAMES[Math.round(m)%12]:'--')+' | Target: '+(n?NAMES[n.m%12]:'--')+(micMsg?' | '+micMsg:'');
+  if(t>=DUR){running=false;nodes.forEach(o=>{try{o.stop()}catch(e){}});nodes=[];finish();return}
+  requestAnimationFrame(frame);
+}
+const acc=i=>P[i].n?Math.round(100*P[i].hit/P[i].n):0;
+const line=(l,i)=>l+': '+P[i].score+' pts, '+acc(i)+'% acc, max combo '+P[i].max;
+function finish(){
+  $('game').classList.add('hide');
+  const solo=$('solo').checked;
+  if(player===0&&!solo){
+    $('midtxt').innerHTML=line('P1',0)+'<br>Pass the mic!';
+    $('mid').classList.remove('hide');
+  }else{
+    const w=solo?'Song complete!':P[0].score===P[1].score?'Tie!':P[0].score>P[1].score?'Player 1 wins!':'Player 2 wins!';
+    $('endtxt').innerHTML=w+'<br>'+line('P1',0)+(solo?'':'<br>'+line('P2',1));
+    $('end').classList.remove('hide');
+  }
+}
+</script></body></html>
